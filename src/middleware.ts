@@ -26,6 +26,7 @@ export async function middleware(request: NextRequest) {
 
   if (
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/uploads") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/uploads") ||
     pathname.includes(".")

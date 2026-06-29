@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { formatCurrency } from "@/lib/calculations";
 import { formatRiskReward } from "@/lib/instruments";
 import { ImageLightbox, type LightboxImage } from "@/components/history/ImageLightbox";
+import { screenshotSrc } from "@/lib/uploads";
 import {
   Brain,
   ChevronDown,
@@ -62,7 +63,7 @@ export function TradeHistoryCard({ trade, aiConfigured, defaultExpanded = false 
     : null;
 
   const lightboxImages: LightboxImage[] = trade.screenshots.map((s) => ({
-    src: s.path,
+    src: screenshotSrc(s.path),
     alt: s.filename,
     label: s.label,
   }));
@@ -173,7 +174,7 @@ export function TradeHistoryCard({ trade, aiConfigured, defaultExpanded = false 
                           className="group relative cursor-pointer overflow-hidden rounded-lg border border-slate-700 transition-all hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/20"
                         >
                           <img
-                            src={shot.path}
+                            src={screenshotSrc(shot.path)}
                             alt={shot.filename}
                             className="h-24 w-40 object-cover transition-transform group-hover:scale-105"
                           />

@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { prisma } from "@/lib/prisma";
+import { getUploadDir, publicUploadPath } from "@/lib/uploads";
 
 export async function POST(request: Request) {
   try {
@@ -15,21 +16,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File and tradeId required" }, { status: 400 });
     }
 
+    const trade = await prisma.trade.findUnique({ where: { id: tradeId }, select: { id: true } });
+    if (!trade) {
+      return NextResponse.json({ error: "Trade not found" }, { status: 404 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const ext = path.extname(file.name) || ".png";
     const filename = `${uuidv4()}${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", tradeId);
+    const uploadDir = path.join(getUploadDir(), tradeId);
 
     await mkdir(uploadDir, { recursive: true });
-    const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
+    await writeFile(path.join(uploadDir, filename), buffer);
 
     const screenshot = await prisma.screenshot.create({
       data: {
         tradeId,
         filename: file.name,
-        path: `/uploads/${tradeId}/${filename}`,
+        path: publicUploadPath(tradeId, filename),
         label: label ?? undefined,
       },
     });

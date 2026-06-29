@@ -169,7 +169,15 @@ export function TradeEntryForm() {
         const formData = new FormData();
         formData.append("file", screenshot.file);
         formData.append("tradeId", trade.id);
-        await fetch("/api/upload", { method: "POST", body: formData });
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({}));
+          throw new Error((err as { error?: string }).error ?? "Screenshot upload failed");
+        }
       }
 
       router.push(`/trades/${trade.id}`);

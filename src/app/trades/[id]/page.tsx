@@ -20,6 +20,7 @@ import { CloseTradeSection } from "@/components/trade/CloseTradeSection";
 import { parseAdditionalTakeProfits } from "@/lib/take-profit-targets";
 import { PageTransition, FadeIn } from "@/components/motion/PageTransition";
 import { ImageLightbox } from "@/components/history/ImageLightbox";
+import { screenshotSrc } from "@/lib/uploads";
 
 interface Trade {
   id: string;
@@ -280,12 +281,12 @@ export default function TradeDetailPage() {
                 onClick={() => setLightboxIndex(i)}
                 className="group cursor-pointer overflow-hidden rounded-xl border border-slate-800 transition-colors hover:border-emerald-500/50"
               >
-                <img src={s.path} alt={s.filename} className="h-28 w-44 object-cover transition-transform group-hover:scale-105" />
+                <img src={screenshotSrc(s.path)} alt={s.filename} className="h-28 w-44 object-cover transition-transform group-hover:scale-105" />
               </button>
             ))}
           </div>
           <ImageLightbox
-            images={trade.screenshots.map((s) => ({ src: s.path, alt: s.filename, label: s.label }))}
+            images={trade.screenshots.map((s) => ({ src: screenshotSrc(s.path), alt: s.filename, label: s.label }))}
             index={lightboxIndex}
             onClose={() => setLightboxIndex(null)}
             onNavigate={setLightboxIndex}
