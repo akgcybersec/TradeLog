@@ -1,6 +1,8 @@
 # TradeLog — Intelligent Trading Journal
 
-A self-hosted trading journal with automatic risk math, multi-account profiles, chart screenshots, and AI coaching (Claude, OpenAI, or Gemini).
+A **self-hosted, single-user** trading journal. One installation, one trader, one SQLite database on your machine (or in Docker). There is no multi-tenant cloud backend — you own the data.
+
+Automatic risk math, multi-account profiles, chart screenshots, and optional AI coaching (Claude, OpenAI, or Gemini).
 
 ## Features
 
@@ -15,48 +17,58 @@ A self-hosted trading journal with automatic risk math, multi-account profiles, 
 - **Mobile-friendly** — Responsive layout with collapsible navigation
 - **Docker** — Production image with persistent SQLite and uploads
 
+## Single-user design
+
+TradeLog is built for **one person on one instance**:
+
+- All trades, settings, and API keys live in your local SQLite database
+- No shared accounts, teams, or hosted SaaS layer
+- Optional login protects access on a shared server; by default the app opens without sign-in (fine for personal laptops)
+- Back up `prisma/dev.db` (or the Docker `sqlite-data` volume) to preserve your journal
+
 ## Prerequisites
 
 - Node.js 20+
 - npm
 
-## Quick Start (local)
+## Install (local)
 
 ```bash
+git clone git@github.com:akgcybersec/TradeLog.git
+cd TradeLog
+
 npm install
 cp .env.example .env
-# Edit .env — set SESSION_SECRET (min 32 characters) if you enable login
+```
 
+Edit `.env` and set `SESSION_SECRET` to a random string of at least 32 characters (required if you enable login):
+
+```bash
+openssl rand -base64 32
+```
+
+Apply the database schema and start the dev server:
+
+```bash
 npm run db:push
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-By default, **login is not required**. Enable it under **Settings → Access & Login** if you want a sign-in page.
-
-## Environment variables
-
-Copy `.env.example` to `.env`. **Never commit `.env`** — it is gitignored.
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SESSION_SECRET` | When login is enabled | Random string, min 32 characters |
-| `DATABASE_URL` | Optional | Defaults to `file:./prisma/dev.db` (SQLite) |
-| `APP_PORT` | Docker only | Host port (default `3000`) |
-
-**AI and market-data API keys** are configured in the app under **Settings**, stored in your local database — not in `.env` and not in this repository.
-
-## AI setup
-
-1. Open **Settings**
-2. Choose provider (Anthropic, OpenAI, or Gemini)
-3. Enter your API key and verify
-4. Closed trades can receive automatic AI review when configured
-
-## Docker (production)
+### Production build (local, without Docker)
 
 ```bash
+npm run build
+npm start
+```
+
+## Install (Docker)
+
+```bash
+git clone git@github.com:akgcybersec/TradeLog.git
+cd TradeLog
+
 cp .env.example .env
 # Set SESSION_SECRET in .env
 
@@ -72,6 +84,57 @@ docker compose down -v        # stop and remove DB + upload volumes
 ```
 
 Data persists in Docker volumes `sqlite-data` and `upload-data`.
+
+## How to use
+
+### First launch
+
+1. Open the app — no login required by default
+2. Go to **Settings** and set your timezone, default instrument, and risk preferences
+3. (Optional) Add **Trading profiles** for each broker account you track
+4. (Optional) Add an AI provider API key under **Settings → AI** and verify the connection
+
+### Log a trade
+
+1. **New trade** from the sidebar (or dashboard)
+2. Pick instrument, direction, entry, stop loss, and take profit(s)
+3. Attach chart screenshots if you want
+4. Save — risk metrics (R:R, position size, exposure) update as you type
+
+### While a trade is open
+
+- View it on the **Dashboard** or **History**
+- Request an **AI setup review** (if AI is configured) for a second opinion before you hold or exit
+
+### Close a trade
+
+1. Open the trade and enter exit price, outcome (hit SL, TP1, etc.), and realized P/L
+2. Add a **post-trade impression** (what you learned)
+3. AI can generate a **coach review** on close when configured
+
+### Review performance
+
+- **Dashboard** — calendar, equity curve, filters by profile/symbol/session
+- **History** — search and paginate past trades; expand a row for notes and AI feedback
+- **Insights** — periodic AI summary of trends (uses compact snapshots to limit token use)
+
+### Optional login
+
+- **Settings → Access & Login → Require login** — forces sign-in before any page
+- Create credentials via **Sign in** (first user) or **change-credentials** after enabling login on a fresh install
+- Use HTTPS behind a reverse proxy if exposing the app on a network
+
+## Environment variables
+
+Copy `.env.example` to `.env`. **Never commit `.env`** — it is gitignored.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SESSION_SECRET` | When login is enabled | Random string, min 32 characters |
+| `DATABASE_URL` | Optional | Defaults to `file:./prisma/dev.db` (SQLite) |
+| `APP_PORT` | Docker only | Host port (default `3000`) |
+
+**AI and market-data API keys** are configured in the app under **Settings**, stored in your local database — not in `.env` and not in this repository.
 
 ## Scripts
 

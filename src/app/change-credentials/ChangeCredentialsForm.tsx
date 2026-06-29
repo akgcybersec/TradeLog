@@ -59,7 +59,7 @@ export function ChangeCredentialsForm({ currentName }: { currentName: string }) 
           </div>
           <h1 className="font-mono text-2xl font-bold tracking-tight text-slate-100">Secure your account</h1>
           <p className="mt-2 text-sm text-slate-400">
-            You signed in with the demo account. Set your own email and password to continue.
+            Set your email and password for this installation.
           </p>
         </div>
 

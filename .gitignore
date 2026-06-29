@@ -50,3 +50,7 @@ next-env.d.ts
 
 # generated / local tooling
 graphify-out/
+design-system/
+.cursor/
+AGENTS.md
+CLAUDE.md
