@@ -441,8 +441,7 @@ export default function SettingsPage() {
       </div>
       </FadeIn>
 
-      <form onSubmit={handleSave} className="space-y-8">
-        <FadeIn delay={0.03}>
+      <FadeIn delay={0.03}>
         <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 space-y-4">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
             <Lock className="h-5 w-5 text-emerald-500" />
@@ -489,8 +488,9 @@ export default function SettingsPage() {
             </p>
           )}
         </section>
-        </FadeIn>
+      </FadeIn>
 
+      <form onSubmit={handleSave} className="space-y-8">
         <FadeIn delay={0.05}>
         <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 space-y-4">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
