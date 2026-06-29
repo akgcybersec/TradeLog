@@ -137,6 +137,7 @@ Copy `.env.example` to `.env`. **Never commit `.env`** — it is gitignored.
 |----------|----------|-------------|
 | `SESSION_SECRET` | When login is enabled | Random string, min 32 characters |
 | `DATABASE_URL` | Optional | Defaults to `file:./prisma/dev.db` (SQLite) |
+| `COOKIE_SECURE` | HTTP / LAN access | Set `false` for `http://192.168.x.x` — otherwise login cookies are blocked |
 | `APP_PORT` | Docker only | Host port (default `3000`) |
 
 **AI and market-data API keys** are configured in the app under **Settings**, stored in your local database — not in `.env` and not in this repository.
@@ -149,6 +150,7 @@ Copy `.env.example` to `.env`. **Never commit `.env`** — it is gitignored.
 | `npm run build` | Production build |
 | `npm start` | Run production server |
 | `npm run db:push` | Apply Prisma schema to SQLite |
+| `npm run db:reset` | Delete local DB and recreate empty schema |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run lint` | ESLint |
 
@@ -170,6 +172,28 @@ prisma/
 - API keys belong in **Settings** inside the running app, or in your private `.env` for `SESSION_SECRET` only
 - Enable **Require login** in Settings before exposing the app on a public network
 - Use HTTPS (reverse proxy) in production
+
+## Reset / start fresh
+
+Stop the app, then:
+
+```bash
+npm run db:reset
+```
+
+This deletes the SQLite file and reapplies an empty schema (all trades, settings, login account, and API keys in Settings are removed). Restart with `npm start`.
+
+Docker: `docker compose down -v` removes database and upload volumes, then `docker compose up --build -d`.
+
+## Login blank page over HTTP?
+
+If you open the app as `http://192.168.x.x:3000` with login enabled, add to `.env`:
+
+```bash
+COOKIE_SECURE=false
+```
+
+Restart the app. Browsers refuse secure session cookies on plain HTTP, so sign-in looks successful but the session is never saved.
 
 ## Tech stack
 

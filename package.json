@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "npx prisma db push",
+    "db:reset": "rm -f prisma/dev.db prisma/dev.db-journal dev.db dev.db-journal && npx prisma db push",
     "db:studio": "npx prisma studio",
     "postinstall": "npx prisma generate"
   },

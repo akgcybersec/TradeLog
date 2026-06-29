@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCookieSecure } from "@/lib/cookie-secure";
 
 export const AUTH_REQUIRE_LOGIN_COOKIE = "tj_require_login";
 
@@ -17,7 +18,7 @@ export function setAuthRequireLoginCookie(response: NextResponse, requireLogin: 
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isCookieSecure(),
     maxAge: 60 * 60 * 24 * 365,
   });
 }
