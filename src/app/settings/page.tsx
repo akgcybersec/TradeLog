@@ -61,6 +61,7 @@ export default function SettingsPage() {
   const [checkingMarketData, setCheckingMarketData] = useState(false);
   const [aiKeyValid, setAiKeyValid] = useState(false);
   const [hasUser, setHasUser] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [pendingLoginEnable, setPendingLoginEnable] = useState(false);
 
   const loadAiStatus = async () => {
@@ -160,6 +161,9 @@ export default function SettingsPage() {
       .then((r) => r.json())
       .then((data: { hasUser?: boolean }) => setHasUser(Boolean(data.hasUser)))
       .catch(() => setHasUser(false));
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((r) => setIsLoggedIn(r.ok))
+      .catch(() => setIsLoggedIn(false));
     void loadAiStatus();
     void loadMarketDataStatus();
   }, []);
@@ -393,6 +397,11 @@ export default function SettingsPage() {
     setSaveError("");
 
     if (!enabled) {
+      if (settings.requireLogin && !isLoggedIn) {
+        setSaveError("Sign in before you can disable login.");
+        return;
+      }
+
       setPendingLoginEnable(false);
       setSettings({ ...settings, requireLogin: false });
       try {
@@ -484,7 +493,8 @@ export default function SettingsPage() {
           )}
           {!settings.requireLogin && hasUser && !pendingLoginEnable && (
             <p className="text-xs text-slate-500">
-              An account exists. Enabling login will require sign-in before using the journal.
+              An account exists. Enabling login will require sign-in before using the journal. Disabling login
+              requires you to be signed in.
             </p>
           )}
         </section>

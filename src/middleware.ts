@@ -8,17 +8,20 @@ import {
 import { getSessionOptions, type SessionData } from "@/lib/session";
 
 async function isLoginRequired(request: NextRequest): Promise<boolean> {
-  const fromCookie = parseAuthCookie(request.cookies.get(AUTH_REQUIRE_LOGIN_COOKIE)?.value);
-  if (fromCookie !== null) return fromCookie;
-
   try {
     const res = await fetch(new URL("/api/auth/config", request.nextUrl.origin));
-    if (!res.ok) return true;
-    const data = (await res.json()) as { requireLogin?: boolean };
-    return Boolean(data.requireLogin);
+    if (res.ok) {
+      const data = (await res.json()) as { requireLogin?: boolean };
+      return Boolean(data.requireLogin);
+    }
   } catch {
-    return true;
+    // API unreachable — fall back to cookie, then default open (no lockout after db reset)
+    const fromCookie = parseAuthCookie(request.cookies.get(AUTH_REQUIRE_LOGIN_COOKIE)?.value);
+    return fromCookie ?? false;
   }
+
+  const fromCookie = parseAuthCookie(request.cookies.get(AUTH_REQUIRE_LOGIN_COOKIE)?.value);
+  return fromCookie ?? false;
 }
 
 export async function middleware(request: NextRequest) {

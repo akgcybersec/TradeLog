@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { setAuthRequireLoginCookie } from "@/lib/auth-config";
 import { getOrCreateSettings, prisma } from "@/lib/prisma";
 
@@ -44,6 +45,16 @@ export async function PATCH(request: Request) {
       "dashboardDefaultView",
       "requireLogin",
     ] as const;
+
+    if (body.requireLogin === false && existing.requireLogin === true) {
+      const user = await getCurrentUser();
+      if (!user) {
+        return NextResponse.json(
+          { error: "Sign in before you can disable login." },
+          { status: 401 },
+        );
+      }
+    }
 
     for (const field of fields) {
       if (body[field] !== undefined && body[field] !== existing[field]) {

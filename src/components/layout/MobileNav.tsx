@@ -9,16 +9,20 @@ import { NavLinks } from "@/components/layout/NavLinks";
 import { useAuthConfig } from "@/hooks/useAuthConfig";
 
 function AuthNavAction({
-  requireLogin,
+  hasUser,
   isLoggedIn,
   onLogout,
   onNavigate,
 }: {
-  requireLogin: boolean;
+  hasUser: boolean;
   isLoggedIn: boolean;
   onLogout: () => void;
   onNavigate?: () => void;
 }) {
+  if (!isLoggedIn && !hasUser) {
+    return null;
+  }
+
   if (isLoggedIn) {
     return (
       <button
@@ -39,7 +43,7 @@ function AuthNavAction({
       className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200"
     >
       <LogIn className="h-4 w-4" />
-      {requireLogin ? "Sign in" : "Sign in (optional)"}
+      Sign in
     </Link>
   );
 }
@@ -48,7 +52,7 @@ export function MobileNav() {
   const router = useRouter();
   const pathname = usePathname();
   const reduce = useReducedMotion();
-  const { requireLogin, isLoggedIn, loading } = useAuthConfig();
+  const { requireLogin, hasUser, isLoggedIn, loading } = useAuthConfig();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -65,7 +69,7 @@ export function MobileNav() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setOpen(false);
-    router.push("/login");
+    router.push(requireLogin ? "/login" : "/");
     router.refresh();
   };
 
@@ -122,10 +126,10 @@ export function MobileNav() {
               <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
                 <NavLinks layoutId="mobile-nav-active" onNavigate={() => setOpen(false)} />
               </nav>
-              {!loading && (
+              {!loading && (isLoggedIn || hasUser) && (
                 <div className="border-t border-slate-800 p-3">
                   <AuthNavAction
-                    requireLogin={requireLogin}
+                    hasUser={hasUser}
                     isLoggedIn={isLoggedIn}
                     onLogout={handleLogout}
                     onNavigate={() => setOpen(false)}

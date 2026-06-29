@@ -12,6 +12,7 @@ export function notifyAuthConfigChanged() {
 export function useAuthConfig() {
   const pathname = usePathname();
   const [requireLogin, setRequireLogin] = useState(false);
+  const [hasUser, setHasUser] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -22,8 +23,9 @@ export function useAuthConfig() {
       fetch("/api/auth/me", { cache: "no-store" }),
     ])
       .then(async ([configRes, meRes]) => {
-        const config = (await configRes.json()) as { requireLogin?: boolean };
+        const config = (await configRes.json()) as { requireLogin?: boolean; hasUser?: boolean };
         setRequireLogin(Boolean(config.requireLogin));
+        setHasUser(Boolean(config.hasUser));
         if (meRes.ok) {
           const me = (await meRes.json()) as { user?: unknown };
           setIsLoggedIn(Boolean(me.user));
@@ -33,6 +35,7 @@ export function useAuthConfig() {
       })
       .catch(() => {
         setRequireLogin(false);
+        setHasUser(false);
         setIsLoggedIn(false);
       })
       .finally(() => setLoading(false));
@@ -44,5 +47,5 @@ export function useAuthConfig() {
     return () => window.removeEventListener(AUTH_CONFIG_CHANGED, refresh);
   }, [refresh, pathname]);
 
-  return { requireLogin, isLoggedIn, loading, refresh };
+  return { requireLogin, hasUser, isLoggedIn, loading, refresh };
 }

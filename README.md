@@ -193,6 +193,8 @@ npm run db:reset
 
 This deletes the SQLite file and reapplies an empty schema (all trades, settings, login account, and API keys in Settings are removed). Restart with `npm start`.
 
+Login is off again after reset (`requireLogin` defaults to `false`). If you still land on `/login`, hard-refresh once — an old `tj_require_login` browser cookie may need clearing (DevTools → Application → Cookies → delete `tj_require_login` for this site).
+
 Docker: `docker compose down -v` removes database and upload volumes, then `docker compose up --build -d`.
 
 ## Login still failing?
