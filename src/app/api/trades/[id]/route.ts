@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { runTradeReviewIfConfigured } from "@/lib/ai/autoReview";
 import { computeFullTrade } from "@/lib/calculations";
 import { getOrCreateSettings, prisma } from "@/lib/prisma";
-import { canEditClosedTrade, resolveCloseEditAnchor } from "@/lib/trade-close";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -18,11 +17,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   if (trade.exitPrice && !trade.closedAt) {
-    const anchor =
-      trade.updatedAt > trade.openedAt ? trade.updatedAt : new Date();
     const backfilled = await prisma.trade.update({
       where: { id },
-      data: { closedAt: anchor },
+      data: { closedAt: trade.updatedAt > trade.openedAt ? trade.updatedAt : new Date() },
       include: { screenshots: true, tradingProfile: true },
     });
     return NextResponse.json(backfilled);
@@ -56,22 +53,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const settings = await getOrCreateSettings();
 
     const isExitUpdate = body.exitPrice != null;
-    const wasClosed = existing.exitPrice != null;
-    const isExitCorrection = isExitUpdate && wasClosed;
-
-    if (
-      isExitCorrection &&
-      !canEditClosedTrade(resolveCloseEditAnchor(existing.closedAt, existing.updatedAt))
-    ) {
-      return NextResponse.json(
-        { error: "The 10-minute window to edit close details has expired." },
-        { status: 403 },
-      );
-    }
-
+    const isExitCorrection = isExitUpdate && existing.exitPrice != null;
     const closedAt = isExitUpdate
-      ? isExitCorrection
-        ? resolveCloseEditAnchor(existing.closedAt, existing.updatedAt) ?? new Date()
+      ? isExitCorrection && existing.closedAt
+        ? existing.closedAt
         : new Date()
       : null;
 
