@@ -58,8 +58,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Production build (without Docker)
 
-Install **all** dependencies first (build needs devDependencies such as TypeScript and Tailwind), then apply the schema and build:
-
 ```bash
 npm install
 cp .env.example .env   # if not done yet — set SESSION_SECRET
@@ -68,14 +66,7 @@ npm run build
 npm start
 ```
 
-Do **not** use `npm install --omit=dev` before `npm run build` — the build will fail. After a successful build you may prune dev packages if you need a slimmer `node_modules` on disk:
-
-```bash
-npm prune --omit=dev
-npm start
-```
-
-`prisma` and `@prisma/client` stay in production dependencies for `db:push` and runtime.
+Use a plain `npm install` (not `--omit=dev`) so TypeScript types and ESLint stay available if you rebuild later.
 
 ## Install (Docker)
 
