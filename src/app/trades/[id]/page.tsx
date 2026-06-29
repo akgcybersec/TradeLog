@@ -10,7 +10,9 @@ import {
   canEditClosedTrade,
   formatEditTimeRemaining,
   msUntilCloseEditExpires,
-  resolveCloseTimestamp,
+  readClientCloseAnchor,
+  resolveCloseEditAnchor,
+  writeClientCloseAnchor,
 } from "@/lib/trade-close";
 import {
   ArrowLeft,
@@ -89,6 +91,7 @@ export default function TradeDetailPage() {
   const [setupReviewing, setSetupReviewing] = useState(false);
   const [closing, setClosing] = useState(false);
   const [editTimeLeft, setEditTimeLeft] = useState(0);
+  const [clientCloseAnchor, setClientCloseAnchor] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -115,11 +118,15 @@ export default function TradeDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    setClientCloseAnchor(readClientCloseAnchor(id));
+  }, [id]);
+
+  useEffect(() => {
     if (!trade?.exitPrice) {
       setEditTimeLeft(0);
       return;
     }
-    const anchor = resolveCloseTimestamp(trade.closedAt, trade.updatedAt);
+    const anchor = resolveCloseEditAnchor(trade.closedAt, trade.updatedAt, clientCloseAnchor);
     if (!anchor || !canEditClosedTrade(anchor)) {
       setEditTimeLeft(0);
       return;
@@ -128,7 +135,7 @@ export default function TradeDetailPage() {
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [trade?.exitPrice, trade?.closedAt, trade?.updatedAt]);
+  }, [trade?.exitPrice, trade?.closedAt, trade?.updatedAt, clientCloseAnchor]);
 
   const handleCloseTrade = async () => {
     if (!exitPrice) return;
@@ -144,7 +151,14 @@ export default function TradeDetailPage() {
         }),
       });
       const updated = await res.json();
-      setTrade(updated);
+      if (!res.ok) {
+        alert(updated.error ?? "Failed to close trade");
+        return;
+      }
+      const closedAt = updated.closedAt ?? new Date().toISOString();
+      writeClientCloseAnchor(id, new Date(closedAt));
+      setClientCloseAnchor(closedAt);
+      setTrade({ ...updated, closedAt });
     } finally {
       setClosing(false);
     }
@@ -210,7 +224,9 @@ export default function TradeDetailPage() {
     return <p className="text-slate-400">Trade not found</p>;
   }
 
-  const closeAnchor = trade.exitPrice ? resolveCloseTimestamp(trade.closedAt, trade.updatedAt) : null;
+  const closeAnchor = trade.exitPrice
+    ? resolveCloseEditAnchor(trade.closedAt, trade.updatedAt, clientCloseAnchor)
+    : null;
   const canEditClose = Boolean(closeAnchor && canEditClosedTrade(closeAnchor));
   const editCountdownMs =
     editTimeLeft > 0 ? editTimeLeft : closeAnchor ? msUntilCloseEditExpires(closeAnchor) : 0;
@@ -388,6 +404,18 @@ export default function TradeDetailPage() {
               </span>
             )}
           </div>
+          {closeAnchor && (
+            <p className="mb-4 text-xs text-slate-500">
+              Closed{" "}
+              {closeAnchor.toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <DetailCard label="Exit Price" value={trade.exitPrice.toString()} />
             {trade.exitOutcome && (
