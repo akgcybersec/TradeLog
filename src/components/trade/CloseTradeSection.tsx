@@ -72,43 +72,91 @@ export function CloseTradeSection({
   const isCustom = exitOutcome === "custom";
   const hasExit = isCustom ? Boolean(exitPrice.trim()) : Boolean(exitOutcome && selectedLevel);
 
+  const canPreview = Boolean(
+    instrument && direction && entryPrice != null && positionSize != null && accountBalance != null,
+  );
+
+  const levelPreviews = useMemo(() => {
+    if (!canPreview) return {} as Record<string, number | null>;
+    const spec = getInstrumentSpec(instrument!);
+    const risk = calculateRiskMetrics(
+      {
+        instrument: instrument!,
+        direction: direction!,
+        entryPrice: entryPrice!,
+        stopLoss,
+        takeProfit,
+        positionSize: positionSize!,
+        positionUnit,
+        accountBalance: accountBalance!,
+      },
+      spec,
+    );
+    const previews: Record<string, number | null> = {};
+    for (const opt of levelOptions) {
+      const metrics = calculateExitMetrics(
+        direction!,
+        entryPrice!,
+        opt.price,
+        stopLoss,
+        takeProfit,
+        positionSize!,
+        positionUnit,
+        accountBalance!,
+        spec,
+        risk.potentialProfit,
+        risk.potentialLoss,
+        openedAt ?? new Date(),
+        closedAt ?? new Date(),
+      );
+      previews[opt.id] = metrics.profitLoss;
+    }
+    return previews;
+  }, [
+    canPreview,
+    instrument,
+    direction,
+    entryPrice,
+    stopLoss,
+    takeProfit,
+    positionSize,
+    positionUnit,
+    accountBalance,
+    levelOptions,
+    openedAt,
+    closedAt,
+  ]);
+
   const exitPreview = useMemo(() => {
-    if (
-      !hasExit ||
-      !instrument ||
-      !direction ||
-      entryPrice == null ||
-      positionSize == null ||
-      accountBalance == null
-    ) {
+    if (!canPreview || !hasExit) {
       return null;
     }
     const price = Number(exitPrice);
     if (!Number.isFinite(price) || price <= 0) return null;
 
-    const spec = getInstrumentSpec(instrument);
+    const spec = getInstrumentSpec(instrument!);
     const risk = calculateRiskMetrics(
       {
-        instrument,
-        direction,
-        entryPrice,
+        instrument: instrument!,
+        direction: direction!,
+        entryPrice: entryPrice!,
         stopLoss,
         takeProfit,
-        positionSize,
+        positionSize: positionSize!,
         positionUnit,
-        accountBalance,
+        accountBalance: accountBalance!,
       },
       spec,
     );
     return calculateExitMetrics(
-      direction,
-      entryPrice,
+      direction!,
+      entryPrice!,
       price,
       stopLoss,
       takeProfit,
-      positionSize,
+      positionSize!,
       positionUnit,
-      accountBalance,
+      accountBalance!,
       spec,
       risk.potentialProfit,
       risk.potentialLoss,
@@ -116,6 +164,7 @@ export function CloseTradeSection({
       closedAt ?? new Date(),
     );
   }, [
+    canPreview,
     hasExit,
     instrument,
     direction,
@@ -145,7 +194,9 @@ export function CloseTradeSection({
       <div>
         <label className={labelClass}>How did the trade close?</label>
         <div className="flex flex-wrap gap-2">
-          {levelOptions.map((opt) => (
+          {levelOptions.map((opt) => {
+            const pl = levelPreviews[opt.id];
+            return (
             <motion.button
               key={opt.id}
               type="button"
@@ -161,8 +212,14 @@ export function CloseTradeSection({
               }`}
             >
               {opt.label}
+              {pl != null && (
+                <span className={`ml-1.5 font-mono ${pl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {formatCurrency(pl)}
+                </span>
+              )}
             </motion.button>
-          ))}
+            );
+          })}
           <motion.button
             type="button"
             whileHover={{ scale: 1.03 }}
@@ -195,7 +252,9 @@ export function CloseTradeSection({
           <p className="mt-0.5 font-mono text-sm font-semibold text-slate-100">{exitPrice}</p>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">Select SL, a TP level, or Custom price above.</p>
+        <p className="text-xs text-slate-500">
+          Select SL, a TP level, or Custom price — P/L is shown on each option.
+        </p>
       )}
 
       {exitPreview?.profitLoss != null && (
