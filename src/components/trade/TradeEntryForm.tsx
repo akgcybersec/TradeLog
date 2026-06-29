@@ -405,6 +405,13 @@ export function TradeEntryForm() {
           onExitPriceChange={setExitPrice}
           postTradeImpression={postTradeImpression}
           onPostTradeImpressionChange={setPostTradeImpression}
+          instrument={instrument}
+          direction={direction}
+          entryPrice={num(entryPrice)}
+          positionSize={num(positionSize)}
+          positionUnit={positionUnit}
+          accountBalance={num(accountBalance)}
+          openedAt={openedAt}
           inputClass={inputClass}
           labelClass={labelClass}
         />

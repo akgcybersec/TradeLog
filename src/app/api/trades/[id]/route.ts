@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runTradeReviewIfConfigured } from "@/lib/ai/autoReview";
 import { computeFullTrade } from "@/lib/calculations";
 import { getOrCreateSettings, prisma } from "@/lib/prisma";
+import { canEditClosedTrade, resolveCloseTimestamp } from "@/lib/trade-close";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -14,6 +15,15 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   if (!trade) {
     return NextResponse.json({ error: "Trade not found" }, { status: 404 });
+  }
+
+  if (trade.exitPrice && !trade.closedAt) {
+    const backfilled = await prisma.trade.update({
+      where: { id },
+      data: { closedAt: trade.updatedAt },
+      include: { screenshots: true, tradingProfile: true },
+    });
+    return NextResponse.json(backfilled);
   }
 
   return NextResponse.json(trade);
@@ -42,7 +52,23 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           : undefined;
 
     const settings = await getOrCreateSettings();
-    const closedAt = body.exitPrice ? (body.closedAt ? new Date(body.closedAt) : new Date()) : null;
+
+    const isExitUpdate = body.exitPrice != null;
+    const wasClosed = existing.exitPrice != null;
+    const isExitCorrection = isExitUpdate && wasClosed;
+
+    if (isExitCorrection && !canEditClosedTrade(existing.closedAt, existing.updatedAt)) {
+      return NextResponse.json(
+        { error: "The 10-minute window to edit close details has expired." },
+        { status: 403 },
+      );
+    }
+
+    const closedAt = isExitUpdate
+      ? isExitCorrection
+        ? resolveCloseTimestamp(existing.closedAt, existing.updatedAt) ?? new Date()
+        : new Date()
+      : null;
 
     const inputs = {
       instrument: body.instrument ?? existing.instrument,

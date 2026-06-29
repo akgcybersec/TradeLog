@@ -1,7 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { NumberField } from "@/components/ui/NumberField";
 import { buildExitLevelOptions } from "@/lib/take-profit-targets";
+import { calculateExitMetrics, calculateRiskMetrics, formatCurrency, formatPercent } from "@/lib/calculations";
+import { getInstrumentSpec } from "@/lib/instruments";
+import type { PositionUnit, TradeDirection } from "@/types/trade";
 import { motion } from "motion/react";
 
 interface CloseTradeSectionProps {
@@ -17,8 +21,18 @@ interface CloseTradeSectionProps {
   onClose?: () => void;
   closing?: boolean;
   showCloseButton?: boolean;
+  closeButtonLabel?: string;
   inputClass?: string;
   labelClass?: string;
+  /** When set, shows live P/L for the selected or custom exit price. */
+  instrument?: string;
+  direction?: TradeDirection;
+  entryPrice?: number;
+  positionSize?: number;
+  positionUnit?: PositionUnit;
+  accountBalance?: number;
+  openedAt?: Date;
+  closedAt?: Date;
 }
 
 function formatLevelPrice(price: number): string {
@@ -39,8 +53,17 @@ export function CloseTradeSection({
   onClose,
   closing = false,
   showCloseButton = false,
+  closeButtonLabel = "Close Trade",
   inputClass = "w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-colors",
   labelClass = "mb-2 block text-sm text-slate-400",
+  instrument,
+  direction,
+  entryPrice,
+  positionSize,
+  positionUnit = "lots",
+  accountBalance,
+  openedAt,
+  closedAt,
 }: CloseTradeSectionProps) {
   const levelOptions = buildExitLevelOptions(stopLoss, takeProfit, additionalTakeProfits).filter(
     (opt) => Number.isFinite(opt.price) && opt.price > 0,
@@ -48,6 +71,64 @@ export function CloseTradeSection({
   const selectedLevel = levelOptions.find((opt) => opt.id === exitOutcome);
   const isCustom = exitOutcome === "custom";
   const hasExit = isCustom ? Boolean(exitPrice.trim()) : Boolean(exitOutcome && selectedLevel);
+
+  const exitPreview = useMemo(() => {
+    if (
+      !hasExit ||
+      !instrument ||
+      !direction ||
+      entryPrice == null ||
+      positionSize == null ||
+      accountBalance == null
+    ) {
+      return null;
+    }
+    const price = Number(exitPrice);
+    if (!Number.isFinite(price) || price <= 0) return null;
+
+    const spec = getInstrumentSpec(instrument);
+    const risk = calculateRiskMetrics(
+      {
+        instrument,
+        direction,
+        entryPrice,
+        stopLoss,
+        takeProfit,
+        positionSize,
+        positionUnit,
+        accountBalance,
+      },
+      spec,
+    );
+    return calculateExitMetrics(
+      direction,
+      entryPrice,
+      price,
+      stopLoss,
+      takeProfit,
+      positionSize,
+      positionUnit,
+      accountBalance,
+      spec,
+      risk.potentialProfit,
+      risk.potentialLoss,
+      openedAt ?? new Date(),
+      closedAt ?? new Date(),
+    );
+  }, [
+    hasExit,
+    instrument,
+    direction,
+    entryPrice,
+    positionSize,
+    positionUnit,
+    accountBalance,
+    exitPrice,
+    stopLoss,
+    takeProfit,
+    openedAt,
+    closedAt,
+  ]);
 
   const selectOutcome = (id: string, price: number) => {
     onExitOutcomeChange(id);
@@ -117,6 +198,30 @@ export function CloseTradeSection({
         <p className="text-xs text-slate-500">Select SL, a TP level, or Custom price above.</p>
       )}
 
+      {exitPreview?.profitLoss != null && (
+        <div className="max-w-md rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Estimated result</p>
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <p
+              className={`font-mono text-xl font-semibold ${
+                exitPreview.profitLoss >= 0 ? "text-emerald-400" : "text-red-400"
+              }`}
+            >
+              {formatCurrency(exitPreview.profitLoss)}
+            </p>
+            {exitPreview.profitLossPercent != null && (
+              <p className="font-mono text-sm text-slate-400">{formatPercent(exitPreview.profitLossPercent)}</p>
+            )}
+            {exitPreview.actualRMultiple != null && (
+              <p className="font-mono text-sm text-slate-400">{exitPreview.actualRMultiple.toFixed(2)}R</p>
+            )}
+            {exitPreview.pipsWonLost != null && (
+              <p className="font-mono text-sm text-slate-400">{exitPreview.pipsWonLost.toFixed(1)} pips</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {hasExit && (
         <div>
           <label className={labelClass}>Post-trade reflection (optional)</label>
@@ -137,7 +242,7 @@ export function CloseTradeSection({
           disabled={!hasExit || closing}
           className="w-fit cursor-pointer rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
         >
-          {closing ? "Closing..." : "Close Trade"}
+          {closing ? "Saving..." : closeButtonLabel}
         </button>
       )}
     </div>

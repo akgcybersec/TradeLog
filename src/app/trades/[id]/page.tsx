@@ -7,6 +7,12 @@ import { formatCurrency, formatPercent } from "@/lib/calculations";
 import { formatDuration } from "@/lib/sessions";
 import { formatRiskReward, getAssetClassLabel } from "@/lib/instruments";
 import {
+  canEditClosedTrade,
+  formatEditTimeRemaining,
+  msUntilCloseEditExpires,
+  resolveCloseTimestamp,
+} from "@/lib/trade-close";
+import {
   ArrowLeft,
   Brain,
   Loader2,
@@ -32,6 +38,9 @@ interface Trade {
   takeProfitTargetsJson: string | null;
   exitPrice: number | null;
   exitOutcome: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  updatedAt: string;
   positionSize: number;
   positionUnit: string;
   accountBalance: number;
@@ -79,6 +88,7 @@ export default function TradeDetailPage() {
   const [reviewing, setReviewing] = useState(false);
   const [setupReviewing, setSetupReviewing] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [editTimeLeft, setEditTimeLeft] = useState(0);
   const [aiConfigured, setAiConfigured] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -104,6 +114,22 @@ export default function TradeDetailPage() {
     loadTrade();
   }, [id]);
 
+  useEffect(() => {
+    if (!trade?.exitPrice) {
+      setEditTimeLeft(0);
+      return;
+    }
+    const anchor = resolveCloseTimestamp(trade.closedAt, trade.updatedAt);
+    if (!anchor || !canEditClosedTrade(anchor)) {
+      setEditTimeLeft(0);
+      return;
+    }
+    const tick = () => setEditTimeLeft(msUntilCloseEditExpires(anchor));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [trade?.exitPrice, trade?.closedAt, trade?.updatedAt]);
+
   const handleCloseTrade = async () => {
     if (!exitPrice) return;
     setClosing(true);
@@ -118,6 +144,30 @@ export default function TradeDetailPage() {
         }),
       });
       const updated = await res.json();
+      setTrade(updated);
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  const handleEditClose = async () => {
+    if (!exitPrice || !trade) return;
+    setClosing(true);
+    try {
+      const res = await fetch(`/api/trades/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          exitPrice: Number(exitPrice),
+          exitOutcome: exitOutcome || undefined,
+          postTradeImpression: postTradeImpression.trim() || undefined,
+        }),
+      });
+      const updated = await res.json();
+      if (!res.ok) {
+        alert(updated.error ?? "Failed to update close details");
+        return;
+      }
       setTrade(updated);
     } finally {
       setClosing(false);
@@ -159,6 +209,11 @@ export default function TradeDetailPage() {
   if (!trade) {
     return <p className="text-slate-400">Trade not found</p>;
   }
+
+  const closeAnchor = trade.exitPrice ? resolveCloseTimestamp(trade.closedAt, trade.updatedAt) : null;
+  const canEditClose = Boolean(closeAnchor && canEditClosedTrade(closeAnchor));
+  const editCountdownMs =
+    editTimeLeft > 0 ? editTimeLeft : closeAnchor ? msUntilCloseEditExpires(closeAnchor) : 0;
 
   return (
     <PageTransition className="space-y-8">
@@ -308,6 +363,13 @@ export default function TradeDetailPage() {
             onExitPriceChange={setExitPrice}
             postTradeImpression={postTradeImpression}
             onPostTradeImpressionChange={setPostTradeImpression}
+            instrument={trade.instrument}
+            direction={trade.direction as "buy" | "sell"}
+            entryPrice={trade.entryPrice}
+            positionSize={trade.positionSize}
+            positionUnit={trade.positionUnit as "lots" | "units"}
+            accountBalance={trade.accountBalance}
+            openedAt={new Date(trade.openedAt)}
             onClose={handleCloseTrade}
             closing={closing}
             showCloseButton
@@ -317,7 +379,15 @@ export default function TradeDetailPage() {
 
       {trade.exitPrice && (
         <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
-          <h2 className="mb-4 text-sm font-medium text-slate-300">Exit Results</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium text-slate-300">Exit Results</h2>
+            {canEditClose && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 font-mono text-xs font-semibold text-amber-300">
+                <Clock className="h-3.5 w-3.5" />
+                {formatEditTimeRemaining(editCountdownMs)} to edit close
+              </span>
+            )}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <DetailCard label="Exit Price" value={trade.exitPrice.toString()} />
             {trade.exitOutcome && (
@@ -348,6 +418,47 @@ export default function TradeDetailPage() {
               variant={trade.isWinner ? "positive" : "negative"}
             />
           </div>
+        </section>
+      )}
+
+      {canEditClose && (
+        <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-medium text-amber-400">Correct close details</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Made a mistake? You can update exit price and reflection for a short window after closing.
+              </p>
+            </div>
+            {editCountdownMs > 0 && (
+              <span className="rounded-full bg-amber-500/10 px-3 py-1 font-mono text-xs font-semibold text-amber-300">
+                {formatEditTimeRemaining(editCountdownMs)} left
+              </span>
+            )}
+          </div>
+          <CloseTradeSection
+            stopLoss={trade.stopLoss}
+            takeProfit={trade.takeProfit}
+            additionalTakeProfits={additionalTakeProfits}
+            exitOutcome={exitOutcome}
+            onExitOutcomeChange={setExitOutcome}
+            exitPrice={exitPrice}
+            onExitPriceChange={setExitPrice}
+            postTradeImpression={postTradeImpression}
+            onPostTradeImpressionChange={setPostTradeImpression}
+            instrument={trade.instrument}
+            direction={trade.direction as "buy" | "sell"}
+            entryPrice={trade.entryPrice}
+            positionSize={trade.positionSize}
+            positionUnit={trade.positionUnit as "lots" | "units"}
+            accountBalance={trade.accountBalance}
+            openedAt={new Date(trade.openedAt)}
+            closedAt={closeAnchor ?? undefined}
+            onClose={handleEditClose}
+            closing={closing}
+            showCloseButton
+            closeButtonLabel="Save changes"
+          />
         </section>
       )}
 
