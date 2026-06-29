@@ -7,10 +7,43 @@ import { BookOpen, LogIn, LogOut } from "lucide-react";
 import { NavLinks } from "@/components/layout/NavLinks";
 import { useAuthConfig } from "@/hooks/useAuthConfig";
 
+function AuthNavAction({
+  requireLogin,
+  isLoggedIn,
+  onLogout,
+}: {
+  requireLogin: boolean;
+  isLoggedIn: boolean;
+  onLogout: () => void;
+}) {
+  if (isLoggedIn) {
+    return (
+      <button
+        type="button"
+        onClick={onLogout}
+        className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200"
+      >
+        <LogOut className="h-4 w-4" />
+        Sign out
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href="/login"
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200"
+    >
+      <LogIn className="h-4 w-4" />
+      {requireLogin ? "Sign in" : "Sign in (optional)"}
+    </Link>
+  );
+}
+
 export function Sidebar() {
   const router = useRouter();
   const reduce = useReducedMotion();
-  const { requireLogin, loading } = useAuthConfig();
+  const { requireLogin, isLoggedIn, loading } = useAuthConfig();
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -34,24 +67,11 @@ export function Sidebar() {
       </nav>
       {!loading && (
         <div className="border-t border-slate-800 p-3">
-          {requireLogin ? (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200"
-            >
-              <LogIn className="h-4 w-4" />
-              Sign in (optional)
-            </Link>
-          )}
+          <AuthNavAction
+            requireLogin={requireLogin}
+            isLoggedIn={isLoggedIn}
+            onLogout={handleLogout}
+          />
         </div>
       )}
     </motion.aside>

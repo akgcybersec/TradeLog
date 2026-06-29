@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { BookOpen, LogIn, Loader2, TrendingUp } from "lucide-react";
 
@@ -37,7 +37,6 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") ?? "/";
   const reduce = useReducedMotion();
@@ -51,6 +50,7 @@ export function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
@@ -58,8 +58,7 @@ export function LoginForm() {
         setError(data.error ?? "Login failed");
         return;
       }
-      router.push(data.mustChangeCredentials ? "/change-credentials" : from);
-      router.refresh();
+      window.location.assign(data.mustChangeCredentials ? "/change-credentials" : from);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

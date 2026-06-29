@@ -1,18 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+
+export const AUTH_CONFIG_CHANGED = "tradelog:auth-config-changed";
+
+export function notifyAuthConfigChanged() {
+  window.dispatchEvent(new Event(AUTH_CONFIG_CHANGED));
+}
 
 export function useAuthConfig() {
+  const pathname = usePathname();
   const [requireLogin, setRequireLogin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/auth/config")
-      .then((r) => r.json())
-      .then((data) => setRequireLogin(Boolean(data.requireLogin)))
-      .catch(() => setRequireLogin(false))
+  const refresh = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch("/api/auth/config", { cache: "no-store" }),
+      fetch("/api/auth/me", { cache: "no-store" }),
+    ])
+      .then(async ([configRes, meRes]) => {
+        const config = (await configRes.json()) as { requireLogin?: boolean };
+        setRequireLogin(Boolean(config.requireLogin));
+        if (meRes.ok) {
+          const me = (await meRes.json()) as { user?: unknown };
+          setIsLoggedIn(Boolean(me.user));
+        } else {
+          setIsLoggedIn(false);
+        }
+      })
+      .catch(() => {
+        setRequireLogin(false);
+        setIsLoggedIn(false);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  return { requireLogin, loading };
+  useEffect(() => {
+    refresh();
+    window.addEventListener(AUTH_CONFIG_CHANGED, refresh);
+    return () => window.removeEventListener(AUTH_CONFIG_CHANGED, refresh);
+  }, [refresh, pathname]);
+
+  return { requireLogin, isLoggedIn, loading, refresh };
 }

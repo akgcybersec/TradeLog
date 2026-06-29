@@ -18,6 +18,7 @@ import { normalizeSettingsFormState, type SettingsFormState } from "@/lib/settin
 import { AI_PROVIDER_LIST, getProvider, type AiProviderId } from "@/lib/ai/providers";
 import { pickDefaultModel } from "@/lib/ai/models";
 import { LoginAccountSetup } from "@/components/auth/LoginAccountSetup";
+import { notifyAuthConfigChanged } from "@/hooks/useAuthConfig";
 
 type Settings = SettingsFormState;
 type AiStatus = {
@@ -376,12 +377,11 @@ export default function SettingsPage() {
   const finishEnableLogin = async () => {
     if (!settings) return;
     setSaveError("");
-    setSettings({ ...settings, requireLogin: true });
     try {
       await savePartialSettings({ requireLogin: true });
       await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-      router.refresh();
+      notifyAuthConfigChanged();
+      window.location.href = "/login";
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Failed to enable login");
       setSettings({ ...settings, requireLogin: false });
@@ -397,6 +397,7 @@ export default function SettingsPage() {
       setSettings({ ...settings, requireLogin: false });
       try {
         await savePartialSettings({ requireLogin: false });
+        notifyAuthConfigChanged();
         router.refresh();
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
@@ -422,8 +423,8 @@ export default function SettingsPage() {
       setSettings({ ...settings, requireLogin: true });
     }
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    notifyAuthConfigChanged();
+    window.location.href = "/login";
   };
 
   return (
@@ -450,7 +451,7 @@ export default function SettingsPage() {
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-4">
             <input
               type="checkbox"
-              checked={settings.requireLogin}
+              checked={settings.requireLogin || pendingLoginEnable}
               onChange={(e) => void handleRequireLoginChange(e.target.checked)}
               className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50"
             />
@@ -463,12 +464,15 @@ export default function SettingsPage() {
             </span>
           </label>
           {pendingLoginEnable && (
-            <LoginAccountSetup
-              compact
-              enableLogin
-              onCancel={() => setPendingLoginEnable(false)}
-              onSuccess={handleAccountSetupComplete}
-            />
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <p className="mb-3 text-sm text-slate-300">Create your account to finish enabling login.</p>
+              <LoginAccountSetup
+                compact
+                enableLogin
+                onCancel={() => setPendingLoginEnable(false)}
+                onSuccess={handleAccountSetupComplete}
+              />
+            </div>
           )}
           {settings.requireLogin && hasUser && !pendingLoginEnable && (
             <p className="text-xs text-emerald-400/90">

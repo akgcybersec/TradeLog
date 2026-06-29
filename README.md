@@ -137,7 +137,7 @@ Copy `.env.example` to `.env`. **Never commit `.env`** — it is gitignored.
 |----------|----------|-------------|
 | `SESSION_SECRET` | When login is enabled | Random string, min 32 characters |
 | `DATABASE_URL` | Optional | Defaults to `file:./prisma/dev.db` (SQLite) |
-| `COOKIE_SECURE` | HTTP / LAN access | Set `false` for `http://192.168.x.x` — otherwise login cookies are blocked |
+| `COOKIE_SECURE` | HTTPS only | Set `true` behind HTTPS; omit or leave unset for `http://` LAN access |
 | `APP_PORT` | Docker only | Host port (default `3000`) |
 
 **AI and market-data API keys** are configured in the app under **Settings**, stored in your local database — not in `.env` and not in this repository.
@@ -187,13 +187,13 @@ Docker: `docker compose down -v` removes database and upload volumes, then `dock
 
 ## Login blank page over HTTP?
 
-If you open the app as `http://192.168.x.x:3000` with login enabled, add to `.env`:
+Session cookies are **off** by default so `http://192.168.x.x` works. If you use HTTPS behind a reverse proxy, set in `.env`:
 
 ```bash
-COOKIE_SECURE=false
+COOKIE_SECURE=true
 ```
 
-Restart the app. Browsers refuse secure session cookies on plain HTTP, so sign-in looks successful but the session is never saved.
+Restart the app after changing `.env`.
 
 ## Tech stack
 
