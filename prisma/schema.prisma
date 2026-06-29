@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  passwordHash         String
+  name                 String?
+  mustChangeCredentials Boolean @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Settings {
+  id                  String  @id @default("default")
+  timezone            String  @default("UTC")
+  accountBalance      Float   @default(10000)
+  defaultRiskPercent  Float   @default(1)
+  defaultPositionSize Float   @default(0.1)
+  preferredBroker     String?
+  preferredStrategy   String?
+  preferredTimeframe  String?
+  preferredAccount    String?
+  aiProvider          String  @default("anthropic")
+  anthropicApiKey     String?
+  openaiApiKey        String?
+  geminiApiKey        String?
+  twelveDataApiKey    String?
+  aiModel             String  @default("claude-sonnet-4-20250514")
+  viewFontScale       Float   @default(100)
+  viewUiZoom          Float   @default(100)
+  viewDensity         String  @default("comfortable")
+  reduceMotion        Boolean @default(false)
+  dashboardDefaultView String @default("calendar")
+  requireLogin          Boolean @default(false)
+  updatedAt           DateTime @updatedAt
+}
+
+model TradingProfile {
+  id                  String   @id @default(cuid())
+  name                String
+  broker              String?
+  accountLabel        String?
+  initialBalance      Float
+  defaultRiskPercent  Float    @default(1)
+  defaultPositionSize Float    @default(0.1)
+  positionSizingMode  String   @default("manual") // manual | risk
+  isDefault           Boolean  @default(false)
+  currency            String   @default("USD")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  trades              Trade[]
+}
+
+model Trade {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tradingProfileId String?
+  tradingProfile   TradingProfile? @relation(fields: [tradingProfileId], references: [id], onDelete: SetNull)
+
+  // User inputs
+  instrument    String
+  direction     String
+  entryPrice    Float
+  stopLoss      Float
+  takeProfit    Float
+  takeProfitTargetsJson String?
+  positionSize  Float
+  positionUnit  String   @default("lots")
+  accountBalance Float
+  strategy      String?
+  notes         String?
+  postTradeImpression String?
+
+  // Instrument metadata (computed)
+  assetClass        String
+  pipSize           Float
+  tickSize          Float
+  decimalPrecision  Int
+  quoteCurrency     String
+
+  // Risk analysis (computed at entry)
+  riskRewardRatio       Float?
+  slDistancePips        Float?
+  tpDistancePips        Float?
+  potentialProfit       Float?
+  potentialLoss         Float?
+  riskPercent           Float?
+  rewardPercent         Float?
+  breakEvenPrice        Float?
+  plannedRMultiple      Float?
+  positionExposure      Float?
+
+  // Exit
+  exitPrice             Float?
+  exitOutcome           String?
+  closedAt              DateTime?
+
+  // AI — open-trade setup opinion vs closed-trade review
+  aiSetupReview         String?
+  aiSetupReviewedAt     DateTime?
+
+  // Exit metrics (computed)
+  profitLoss            Float?
+  profitLossPercent     Float?
+  netProfit             Float?
+  grossProfit           Float?
+  pipsWonLost           Float?
+  isWinner              Boolean?
+  tradeDurationMs       Int?
+  actualRMultiple       Float?
+  plannedProfitCaptured Float?
+  plannedLossUsed       Float?
+
+  // Time detection
+  openedAt       DateTime @default(now())
+  dayOfWeek      String?
+  month          String?
+  year           Int?
+  timeOfDay      String?
+  tradingSession String?
+
+  // AI
+  aiReview       String?
+  aiReviewedAt   DateTime?
+
+  screenshots Screenshot[]
+}
+
+model AiInsightReport {
+  id                 String   @id @default(cuid())
+  createdAt          DateTime @default(now())
+  content            String
+  tradeCount         Int
+  newTradesSinceLast Int      @default(0)
+  snapshotJson       String
+  previousReportId   String?
+  previousReport     AiInsightReport?  @relation("InsightChain", fields: [previousReportId], references: [id], onDelete: SetNull)
+  nextReports        AiInsightReport[] @relation("InsightChain")
+}
+
+model Screenshot {
+  id        String   @id @default(cuid())
+  tradeId   String
+  trade     Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  filename  String
+  path      String
+  label     String?
+  createdAt DateTime @default(now())
+}

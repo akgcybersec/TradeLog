@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/data/dev.db
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env (min 32 characters)}
+    volumes:
+      - sqlite-data:/data
+      - upload-data:/app/public/uploads
+    restart: unless-stopped
+
+volumes:
+  sqlite-data:
+  upload-data:
