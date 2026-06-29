@@ -44,6 +44,7 @@ export function LoginAccountSetup({
       const res = await fetch("/api/auth/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password, name, enableLogin }),
       });
       const data = await res.json();
@@ -51,7 +52,11 @@ export function LoginAccountSetup({
         setError(data.error ?? "Failed to create account");
         return;
       }
-      await onSuccess();
+      try {
+        await onSuccess();
+      } finally {
+        window.location.replace("/login");
+      }
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

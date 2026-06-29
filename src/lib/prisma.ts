@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@/generated/prisma/client";
+import { resolveDatabaseUrl } from "@/lib/database-url";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
@@ -20,12 +21,7 @@ function getGeneratedClientMtime(): number {
 }
 
 function createPrismaClient() {
-  const dbPath = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const url = dbPath.startsWith("file:")
-    ? dbPath
-    : `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
-
-  const adapter = new PrismaBetterSqlite3({ url });
+  const adapter = new PrismaBetterSqlite3({ url: resolveDatabaseUrl() });
   return new PrismaClient({ adapter });
 }
 

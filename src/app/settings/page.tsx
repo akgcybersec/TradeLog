@@ -379,9 +379,9 @@ export default function SettingsPage() {
     setSaveError("");
     try {
       await savePartialSettings({ requireLogin: true });
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
       notifyAuthConfigChanged();
-      window.location.href = "/login";
+      window.location.replace("/login");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Failed to enable login");
       setSettings({ ...settings, requireLogin: false });
@@ -422,9 +422,12 @@ export default function SettingsPage() {
     if (settings) {
       setSettings({ ...settings, requireLogin: true });
     }
-    await fetch("/api/auth/logout", { method: "POST" });
-    notifyAuthConfigChanged();
-    window.location.href = "/login";
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      notifyAuthConfigChanged();
+    } catch {
+      // redirect still runs from LoginAccountSetup
+    }
   };
 
   return (

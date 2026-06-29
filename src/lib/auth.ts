@@ -26,18 +26,26 @@ export async function requireUser() {
 }
 
 export async function loginUser(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  const result = await verifyUserCredentials(email, password);
+  if (!result.ok) return result;
+
+  const session = await getSession();
+  session.userId = result.user.id;
+  session.email = result.user.email;
+  session.name = result.user.name ?? undefined;
+  session.isLoggedIn = true;
+  await session.save();
+
+  return { ok: true as const, user: result.user };
+}
+
+export async function verifyUserCredentials(email: string, password: string) {
+  const normalized = email.toLowerCase().trim();
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
   if (!user) return { ok: false as const, error: "Invalid email or password" };
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return { ok: false as const, error: "Invalid email or password" };
-
-  const session = await getSession();
-  session.userId = user.id;
-  session.email = user.email;
-  session.name = user.name ?? undefined;
-  session.isLoggedIn = true;
-  await session.save();
 
   return {
     ok: true as const,
