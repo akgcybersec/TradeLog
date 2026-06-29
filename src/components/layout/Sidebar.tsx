@@ -60,7 +60,7 @@ export function Sidebar() {
       initial={reduce ? false : { x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="hidden w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-950 lg:flex"
+      className="hidden min-h-screen w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-950 lg:flex"
     >
       <div className="flex items-center gap-2 border-b border-slate-800 px-5 py-5">
         <BookOpen className="h-6 w-6 text-emerald-500" />
