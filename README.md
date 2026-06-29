@@ -185,7 +185,24 @@ This deletes the SQLite file and reapplies an empty schema (all trades, settings
 
 Docker: `docker compose down -v` removes database and upload volumes, then `docker compose up --build -d`.
 
-## Login blank page over HTTP?
+## Login still failing?
+
+On the server:
+
+```bash
+npm run auth:check
+curl -s http://127.0.0.1:3000/api/auth/health | python3 -m json.tool
+```
+
+After creating an account, `auth:check` should list your email. `health` should show `"hasUser": true`.
+
+Quote `SESSION_SECRET` in `.env` if it contains `/` or `=`:
+
+```bash
+SESSION_SECRET="your-secret-here"
+```
+
+Then restart: `npm run build && npm start`
 
 Session cookies are **off** by default so `http://192.168.x.x` works. If you use HTTPS behind a reverse proxy, set in `.env`:
 

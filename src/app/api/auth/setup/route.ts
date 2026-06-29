@@ -14,15 +14,24 @@ export async function POST(request: NextRequest) {
     const settings = await getOrCreateSettings();
 
     if (await hasAnyUser()) {
-      if (enableLogin !== true) {
-        return NextResponse.json({ error: "An account already exists" }, { status: 409 });
+      const verified = await verifyUserCredentials(email, password);
+      if (!verified.ok) {
+        return NextResponse.json(
+          {
+            error:
+              "An account already exists with a different password. Sign in with the original password, or run npm run db:reset to start over.",
+          },
+          { status: 409 },
+        );
       }
-      await prisma.settings.update({
-        where: { id: settings.id },
-        data: { requireLogin: true },
-      });
-      const response = NextResponse.json({ ok: true, requireLogin: true, existingUser: true });
-      setAuthRequireLoginCookie(response, true);
+      if (enableLogin === true) {
+        await prisma.settings.update({
+          where: { id: settings.id },
+          data: { requireLogin: true },
+        });
+      }
+      const response = NextResponse.json({ ok: true, requireLogin: enableLogin === true, existingUser: true });
+      setAuthRequireLoginCookie(response, enableLogin === true);
       return response;
     }
 

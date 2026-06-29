@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIronSession } from "iron-session";
 import { verifyUserCredentials } from "@/lib/auth";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { getSessionOptions, type SessionData } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
+    const normalizedEmail = String(email ?? "").toLowerCase().trim();
+    const rawPassword = String(password ?? "");
 
-    if (!email || !password) {
+    if (!normalizedEmail || !rawPassword) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    const result = await verifyUserCredentials(email, password);
+    const result = await verifyUserCredentials(normalizedEmail, rawPassword);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 401 });
     }
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
       mustChangeCredentials: result.user.mustChangeCredentials,
     });
 
-    const session = await getIronSession<SessionData>(request, response, sessionOptions);
+    const session = await getIronSession<SessionData>(request, response, getSessionOptions());
     session.userId = result.user.id;
     session.email = result.user.email;
     session.name = result.user.name ?? undefined;

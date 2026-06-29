@@ -1,12 +1,12 @@
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { defaultSession, sessionOptions, type SessionData } from "@/lib/session";
+import { defaultSession, getSessionOptions, type SessionData } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export async function getSession() {
   const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, sessionOptions);
+  return getIronSession<SessionData>(cookieStore, getSessionOptions());
 }
 
 export async function getCurrentUser() {
@@ -42,10 +42,16 @@ export async function loginUser(email: string, password: string) {
 export async function verifyUserCredentials(email: string, password: string) {
   const normalized = email.toLowerCase().trim();
   const user = await prisma.user.findUnique({ where: { email: normalized } });
-  if (!user) return { ok: false as const, error: "Invalid email or password" };
+  if (!user) {
+    console.warn("[auth] login failed: no user for email", normalized);
+    return { ok: false as const, error: "Invalid email or password" };
+  }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return { ok: false as const, error: "Invalid email or password" };
+  if (!valid) {
+    console.warn("[auth] login failed: bad password for", normalized);
+    return { ok: false as const, error: "Invalid email or password" };
+  }
 
   return {
     ok: true as const,

@@ -5,7 +5,7 @@ import {
   parseAuthCookie,
   setAuthRequireLoginCookie,
 } from "@/lib/auth-config";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { getSessionOptions, type SessionData } from "@/lib/session";
 
 async function isLoginRequired(request: NextRequest): Promise<boolean> {
   const fromCookie = parseAuthCookie(request.cookies.get(AUTH_REQUIRE_LOGIN_COOKIE)?.value);
@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const session = await getIronSession<SessionData>(request, response, sessionOptions);
+  const session = await getIronSession<SessionData>(request, response, getSessionOptions());
 
   const isLoginPage = pathname === "/login";
   const isApi = pathname.startsWith("/api");
