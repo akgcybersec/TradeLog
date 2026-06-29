@@ -4,6 +4,16 @@ A **self-hosted, single-user** trading journal. One installation, one trader, on
 
 Automatic risk math, multi-account profiles, chart screenshots, and optional AI coaching (Claude, OpenAI, or Gemini).
 
+## Screenshots
+
+**Dashboard** — equity curve, win rate, symbol and session breakdowns, filters by account/broker/symbol.
+
+![TradeLog dashboard — equity curve, performance by symbol and session](docs/screenshots/dashboard.png)
+
+**Calendar** — monthly P/L heatmap with daily trade counts.
+
+![TradeLog calendar — monthly profit and loss by day](docs/screenshots/calendar.png)
+
 ## Features
 
 - **Trade entry** — Instrument, direction, entry/SL/TP, position size, notes, screenshots
