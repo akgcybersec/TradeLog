@@ -134,8 +134,8 @@ Data persists in Docker volumes `sqlite-data` and `upload-data`.
 
 ### Optional login
 
-- **Settings → Access & Login → Require login** — forces sign-in before any page
-- Create credentials via **Sign in** (first user) or **change-credentials** after enabling login on a fresh install
+- **Settings → Access & Login → Require login** — when you turn this on, you first create the single app account (email + password), then login is enabled and you are sent to the sign-in page
+- If an account already exists, enabling login takes you straight to `/login`
 - Use HTTPS behind a reverse proxy if exposing the app on a network
 
 ## Environment variables

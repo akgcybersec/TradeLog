@@ -17,6 +17,7 @@ import {
 import { normalizeSettingsFormState, type SettingsFormState } from "@/lib/settings-form";
 import { AI_PROVIDER_LIST, getProvider, type AiProviderId } from "@/lib/ai/providers";
 import { pickDefaultModel } from "@/lib/ai/models";
+import { LoginAccountSetup } from "@/components/auth/LoginAccountSetup";
 
 type Settings = SettingsFormState;
 type AiStatus = {
@@ -58,6 +59,8 @@ export default function SettingsPage() {
   const [marketDataStatus, setMarketDataStatus] = useState<MarketDataStatus | null>(null);
   const [checkingMarketData, setCheckingMarketData] = useState(false);
   const [aiKeyValid, setAiKeyValid] = useState(false);
+  const [hasUser, setHasUser] = useState(false);
+  const [pendingLoginEnable, setPendingLoginEnable] = useState(false);
 
   const loadAiStatus = async () => {
     setCheckingAi(true);
@@ -152,6 +155,10 @@ export default function SettingsPage() {
         setSettings(normalized);
         void loadProviderModels(getProvider(normalized.aiProvider).id);
       });
+    fetch("/api/auth/config")
+      .then((r) => r.json())
+      .then((data: { hasUser?: boolean }) => setHasUser(Boolean(data.hasUser)))
+      .catch(() => setHasUser(false));
     void loadAiStatus();
     void loadMarketDataStatus();
   }, []);
@@ -366,19 +373,57 @@ export default function SettingsPage() {
     }
   };
 
+  const finishEnableLogin = async () => {
+    if (!settings) return;
+    setSaveError("");
+    setSettings({ ...settings, requireLogin: true });
+    try {
+      await savePartialSettings({ requireLogin: true });
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to enable login");
+      setSettings({ ...settings, requireLogin: false });
+    }
+  };
+
   const handleRequireLoginChange = async (enabled: boolean) => {
     if (!settings) return;
     setSaveError("");
-    setSettings({ ...settings, requireLogin: enabled });
-    try {
-      await savePartialSettings({ requireLogin: enabled });
-      router.refresh();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Failed to update login setting");
-      setSettings({ ...settings, requireLogin: !enabled });
+
+    if (!enabled) {
+      setPendingLoginEnable(false);
+      setSettings({ ...settings, requireLogin: false });
+      try {
+        await savePartialSettings({ requireLogin: false });
+        router.refresh();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "Failed to update login setting");
+        setSettings({ ...settings, requireLogin: true });
+      }
+      return;
     }
+
+    if (!hasUser) {
+      setPendingLoginEnable(true);
+      return;
+    }
+
+    await finishEnableLogin();
+  };
+
+  const handleAccountSetupComplete = async () => {
+    setHasUser(true);
+    setPendingLoginEnable(false);
+    if (settings) {
+      setSettings({ ...settings, requireLogin: true });
+    }
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
   };
 
   return (
@@ -417,9 +462,23 @@ export default function SettingsPage() {
               </span>
             </span>
           </label>
-          {settings.requireLogin && (
-            <p className="text-xs text-amber-400/90">
-              Make sure you have a user account before enabling this on a shared server.
+          {pendingLoginEnable && (
+            <LoginAccountSetup
+              compact
+              enableLogin
+              onCancel={() => setPendingLoginEnable(false)}
+              onSuccess={handleAccountSetupComplete}
+            />
+          )}
+          {settings.requireLogin && hasUser && !pendingLoginEnable && (
+            <p className="text-xs text-emerald-400/90">
+              Login is enabled. Sign in at <span className="font-mono text-emerald-300/90">/login</span> with your
+              account.
+            </p>
+          )}
+          {!settings.requireLogin && hasUser && !pendingLoginEnable && (
+            <p className="text-xs text-slate-500">
+              An account exists. Enabling login will require sign-in before using the journal.
             </p>
           )}
         </section>

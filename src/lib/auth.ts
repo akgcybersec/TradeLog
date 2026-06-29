@@ -103,4 +103,41 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
 }
 
+export async function hasAnyUser() {
+  const count = await prisma.user.count();
+  return count > 0;
+}
+
+export async function createInitialUser(input: {
+  email: string;
+  password: string;
+  name?: string | null;
+}) {
+  if (await hasAnyUser()) {
+    return { ok: false as const, error: "An account already exists" };
+  }
+
+  const email = input.email.toLowerCase().trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false as const, error: "Enter a valid email address" };
+  }
+  if (input.password.length < 8) {
+    return { ok: false as const, error: "Password must be at least 8 characters" };
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name: input.name?.trim() || null,
+      passwordHash: await hashPassword(input.password),
+      mustChangeCredentials: false,
+    },
+  });
+
+  return {
+    ok: true as const,
+    user: { id: user.id, email: user.email, name: user.name },
+  };
+}
+
 export { defaultSession };

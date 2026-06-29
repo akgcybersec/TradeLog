@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { LoginForm } from "./LoginForm";
+import { LoginGate } from "./LoginGate";
 import { LoginBackground } from "./LoginBackground";
 
 export default function LoginPage() {
@@ -7,7 +7,7 @@ export default function LoginPage() {
     <>
       <LoginBackground />
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-400">Loading…</div>}>
-        <LoginForm />
+        <LoginGate />
       </Suspense>
     </>
   );
