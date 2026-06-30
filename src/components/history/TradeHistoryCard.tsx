@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Loader2,
   ExternalLink,
+  Pencil,
 } from "lucide-react";
 
 export interface HistoryTrade {
@@ -132,6 +133,16 @@ export function TradeHistoryCard({ trade, aiConfigured, defaultExpanded = false 
             <span>{trade.tradingSession ?? "—"}</span>
             {trade.riskRewardRatio && <span>{formatRiskReward(trade.riskRewardRatio)}</span>}
           </div>
+          {!isClosed && (
+            <Link
+              href={`/trades/${trade.id}?edit=1`}
+              onClick={(e) => e.stopPropagation()}
+              className="hidden shrink-0 cursor-pointer items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-400 transition-colors hover:bg-amber-500/20 sm:inline-flex"
+            >
+              <Pencil className="h-3 w-3" />
+              Edit
+            </Link>
+          )}
           <motion.span animate={{ rotate: expanded ? 180 : 0 }} className="shrink-0 text-slate-500">
             <ChevronDown className="h-5 w-5" />
           </motion.span>
@@ -216,7 +227,16 @@ export function TradeHistoryCard({ trade, aiConfigured, defaultExpanded = false 
                   </section>
                 )}
 
-                <div className="flex justify-end pt-1">
+                <div className="flex justify-end gap-4 pt-1">
+                  {!isClosed && (
+                    <Link
+                      href={`/trades/${trade.id}?edit=1`}
+                      className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-amber-400/80 transition-colors hover:text-amber-400"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit trade
+                    </Link>
+                  )}
                   <Link
                     href={`/trades/${trade.id}`}
                     className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-slate-500 transition-colors hover:text-emerald-400"

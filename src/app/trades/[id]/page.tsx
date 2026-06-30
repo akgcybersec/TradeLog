@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency, formatPercent } from "@/lib/calculations";
 import { formatDuration } from "@/lib/sessions";
@@ -13,10 +13,12 @@ import {
   Clock,
   Globe,
   Image as ImageIcon,
+  Pencil,
 } from "lucide-react";
 import { TradeReviewDisplay } from "@/components/ai/TradeReviewDisplay";
 import { SetupReviewDisplay } from "@/components/ai/SetupReviewDisplay";
 import { CloseTradeSection } from "@/components/trade/CloseTradeSection";
+import { EditOpenTradeForm } from "@/components/trade/EditOpenTradeForm";
 import { parseAdditionalTakeProfits } from "@/lib/take-profit-targets";
 import { PageTransition, FadeIn } from "@/components/motion/PageTransition";
 import { ImageLightbox } from "@/components/history/ImageLightbox";
@@ -40,6 +42,7 @@ interface Trade {
   strategy: string | null;
   notes: string | null;
   postTradeImpression: string | null;
+  tradingProfileId: string | null;
   tradingProfile?: { name: string; broker: string | null } | null;
   assetClass: string;
   pipSize: number;
@@ -73,7 +76,10 @@ interface Trade {
 
 export default function TradeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const [exitPrice, setExitPrice] = useState("");
   const [exitOutcome, setExitOutcome] = useState("");
   const [postTradeImpression, setPostTradeImpression] = useState("");
@@ -193,7 +199,17 @@ export default function TradeDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {aiConfigured && !trade.exitPrice && (
+          {!trade.exitPrice && !editing && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-sm text-slate-300 transition-colors hover:border-slate-600 hover:text-slate-100"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit Trade
+            </button>
+          )}
+          {aiConfigured && !trade.exitPrice && !editing && (
             <button
               onClick={requestSetupReview}
               disabled={setupReviewing}
@@ -217,215 +233,238 @@ export default function TradeDetailPage() {
       </div>
       </FadeIn>
 
-      <FadeIn delay={0.05}>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DetailCard label="Entry" value={trade.entryPrice.toString()} />
-        <DetailCard label="Stop Loss" value={trade.stopLoss.toString()} />
-        <DetailCard label="Take Profit (TP1)" value={trade.takeProfit.toString()} />
-        <DetailCard label="R:R" value={formatRiskReward(trade.riskRewardRatio)} accent />
-      </div>
-      </FadeIn>
+      {!trade.exitPrice && editing ? (
+        <FadeIn delay={0.05}>
+          <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6">
+            <h2 className="mb-1 text-sm font-medium text-amber-400">Edit Open Trade</h2>
+            <p className="mb-6 text-xs text-slate-500">Update entry, stops, targets, and notes while the trade is still open.</p>
+            <EditOpenTradeForm
+              trade={trade}
+              onSaved={(updated) => {
+                setTrade(updated as Trade);
+                setEditing(false);
+                router.replace(`/trades/${id}`);
+              }}
+              onCancel={() => {
+                setEditing(false);
+                router.replace(`/trades/${id}`);
+              }}
+            />
+          </section>
+        </FadeIn>
+      ) : (
+        <>
+          <FadeIn delay={0.05}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <DetailCard label="Entry" value={trade.entryPrice.toString()} />
+              <DetailCard label="Stop Loss" value={trade.stopLoss.toString()} />
+              <DetailCard label="Take Profit (TP1)" value={trade.takeProfit.toString()} />
+              <DetailCard label="R:R" value={formatRiskReward(trade.riskRewardRatio)} accent />
+            </div>
+          </FadeIn>
 
-      {additionalTakeProfits.length > 0 && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
-          <h2 className="mb-3 text-sm font-medium text-slate-300">Additional Take Profits</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {additionalTakeProfits.map((tp, index) => (
-              <DetailCard key={`tp-${index + 2}`} label={`TP${index + 2}`} value={tp.toString()} />
-            ))}
-          </div>
-        </section>
-      )}
+          {additionalTakeProfits.length > 0 && (
+            <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
+              <h2 className="mb-3 text-sm font-medium text-slate-300">Additional Take Profits</h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {additionalTakeProfits.map((tp, index) => (
+                  <DetailCard key={`tp-${index + 2}`} label={`TP${index + 2}`} value={tp.toString()} />
+                ))}
+              </div>
+            </section>
+          )}
 
-      {!trade.exitPrice && setupReviewing && (
-        <section className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/30 px-5 py-4 text-sm text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
-          Analyzing your open setup…
-        </section>
-      )}
+          {!trade.exitPrice && setupReviewing && (
+            <section className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/30 px-5 py-4 text-sm text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
+              Analyzing your open setup…
+            </section>
+          )}
 
-      {!trade.exitPrice && trade.aiSetupReview && (
-        <section className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-sky-400">
-              <Brain className="h-5 w-5" />
-              AI Setup Opinion
-            </h2>
-            {trade.aiSetupReviewedAt && (
-              <span className="text-xs text-slate-500">
-                {new Date(trade.aiSetupReviewedAt).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-          </div>
-          <SetupReviewDisplay review={trade.aiSetupReview} />
-        </section>
-      )}
+          {!trade.exitPrice && trade.aiSetupReview && (
+            <section className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-sky-400">
+                  <Brain className="h-5 w-5" />
+                  AI Setup Opinion
+                </h2>
+                {trade.aiSetupReviewedAt && (
+                  <span className="text-xs text-slate-500">
+                    {new Date(trade.aiSetupReviewedAt).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                )}
+              </div>
+              <SetupReviewDisplay review={trade.aiSetupReview} />
+            </section>
+          )}
 
-      {trade.notes && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
-          <h2 className="mb-2 text-sm font-medium text-slate-300">Entry notes</h2>
-          <p className="text-sm text-slate-400 whitespace-pre-wrap">{trade.notes}</p>
-        </section>
-      )}
+          {trade.notes && (
+            <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
+              <h2 className="mb-2 text-sm font-medium text-slate-300">Entry notes</h2>
+              <p className="text-sm text-slate-400 whitespace-pre-wrap">{trade.notes}</p>
+            </section>
+          )}
 
-      {trade.screenshots.length > 0 && (
-        <section>
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-300">
-            <ImageIcon className="h-4 w-4" />
-            Screenshots
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {trade.screenshots.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setLightboxIndex(i)}
-                className="group cursor-pointer overflow-hidden rounded-xl border border-slate-800 transition-colors hover:border-emerald-500/50"
-              >
-                <img src={screenshotSrc(s.path)} alt={s.filename} className="h-28 w-44 object-cover transition-transform group-hover:scale-105" />
-              </button>
-            ))}
-          </div>
-          <ImageLightbox
-            images={trade.screenshots.map((s) => ({ src: screenshotSrc(s.path), alt: s.filename, label: s.label }))}
-            index={lightboxIndex}
-            onClose={() => setLightboxIndex(null)}
-            onNavigate={setLightboxIndex}
-          />
-        </section>
-      )}
-
-      {!trade.exitPrice && (
-        <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
-          <h2 className="mb-1 text-sm font-medium text-amber-400">Close This Trade</h2>
-          <p className="mb-4 text-xs text-slate-500">Pick how it closed — price fills automatically. Add reflection for your coach.</p>
-          <CloseTradeSection
-            stopLoss={trade.stopLoss}
-            takeProfit={trade.takeProfit}
-            additionalTakeProfits={additionalTakeProfits}
-            exitOutcome={exitOutcome}
-            onExitOutcomeChange={setExitOutcome}
-            exitPrice={exitPrice}
-            onExitPriceChange={setExitPrice}
-            postTradeImpression={postTradeImpression}
-            onPostTradeImpressionChange={setPostTradeImpression}
-            instrument={trade.instrument}
-            direction={trade.direction as "buy" | "sell"}
-            entryPrice={trade.entryPrice}
-            positionSize={trade.positionSize}
-            positionUnit={trade.positionUnit as "lots" | "units"}
-            accountBalance={trade.accountBalance}
-            openedAt={new Date(trade.openedAt)}
-            onClose={handleCloseTrade}
-            closing={closing}
-            showCloseButton
-          />
-        </section>
-      )}
-
-      {trade.exitPrice && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
-          <h2 className="mb-4 text-sm font-medium text-slate-300">Exit Results</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <DetailCard label="Exit Price" value={trade.exitPrice.toString()} />
-            {trade.exitOutcome && (
-              <DetailCard
-                label="Exit type"
-                value={
-                  trade.exitOutcome === "sl"
-                    ? "SL Hit"
-                    : trade.exitOutcome === "custom"
-                      ? "Custom"
-                      : trade.exitOutcome.toUpperCase()
-                }
+          {trade.screenshots.length > 0 && (
+            <section>
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-300">
+                <ImageIcon className="h-4 w-4" />
+                Screenshots
+              </h2>
+              <div className="flex flex-wrap gap-3">
+                {trade.screenshots.map((s, i) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setLightboxIndex(i)}
+                    className="group cursor-pointer overflow-hidden rounded-xl border border-slate-800 transition-colors hover:border-emerald-500/50"
+                  >
+                    <img src={screenshotSrc(s.path)} alt={s.filename} className="h-28 w-44 object-cover transition-transform group-hover:scale-105" />
+                  </button>
+                ))}
+              </div>
+              <ImageLightbox
+                images={trade.screenshots.map((s) => ({ src: screenshotSrc(s.path), alt: s.filename, label: s.label }))}
+                index={lightboxIndex}
+                onClose={() => setLightboxIndex(null)}
+                onNavigate={setLightboxIndex}
               />
-            )}
-            <DetailCard
-              label="P/L"
-              value={formatCurrency(trade.profitLoss)}
-              variant={trade.isWinner ? "positive" : "negative"}
-            />
-            <DetailCard label="P/L %" value={formatPercent(trade.profitLossPercent)} />
-            <DetailCard label="R-Multiple" value={trade.actualRMultiple != null ? `${trade.actualRMultiple.toFixed(2)}R` : "—"} />
-            <DetailCard label="Pips" value={trade.pipsWonLost?.toFixed(1) ?? "—"} />
-            <DetailCard label="Duration" value={formatDuration(trade.tradeDurationMs)} />
-            <DetailCard label="Profit Captured" value={trade.plannedProfitCaptured != null ? `${trade.plannedProfitCaptured.toFixed(0)}%` : "—"} />
-            <DetailCard
-              label="Result"
-              value={trade.isWinner ? "Winner" : "Loser"}
-              variant={trade.isWinner ? "positive" : "negative"}
-            />
-          </div>
-        </section>
-      )}
+            </section>
+          )}
 
-      <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
-        <h2 className="mb-4 text-sm font-medium text-slate-300">Risk Analysis</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <DetailCard label="SL Distance" value={`${trade.slDistancePips?.toFixed(1) ?? "—"} pips`} />
-          <DetailCard label="TP Distance" value={`${trade.tpDistancePips?.toFixed(1) ?? "—"} pips`} />
-          <DetailCard label="Potential Loss" value={formatCurrency(trade.potentialLoss)} variant="negative" />
-          <DetailCard label="Potential Profit" value={formatCurrency(trade.potentialProfit)} variant="positive" />
-          <DetailCard label="Risk %" value={formatPercent(trade.riskPercent)} />
-          <DetailCard label="Reward %" value={formatPercent(trade.rewardPercent)} />
-        </div>
-      </section>
+          {!trade.exitPrice && (
+            <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
+              <h2 className="mb-1 text-sm font-medium text-amber-400">Close This Trade</h2>
+              <p className="mb-4 text-xs text-slate-500">Pick how it closed — price fills automatically. Add reflection for your coach.</p>
+              <CloseTradeSection
+                stopLoss={trade.stopLoss}
+                takeProfit={trade.takeProfit}
+                additionalTakeProfits={additionalTakeProfits}
+                exitOutcome={exitOutcome}
+                onExitOutcomeChange={setExitOutcome}
+                exitPrice={exitPrice}
+                onExitPriceChange={setExitPrice}
+                postTradeImpression={postTradeImpression}
+                onPostTradeImpressionChange={setPostTradeImpression}
+                instrument={trade.instrument}
+                direction={trade.direction as "buy" | "sell"}
+                entryPrice={trade.entryPrice}
+                positionSize={trade.positionSize}
+                positionUnit={trade.positionUnit as "lots" | "units"}
+                accountBalance={trade.accountBalance}
+                openedAt={new Date(trade.openedAt)}
+                onClose={handleCloseTrade}
+                closing={closing}
+                showCloseButton
+              />
+            </section>
+          )}
 
-      <section className="flex flex-wrap gap-4 text-sm text-slate-400">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-emerald-500" />
-          {trade.dayOfWeek}, {trade.timeOfDay}
-        </div>
-        <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-emerald-500" />
-          {trade.tradingSession}
-        </div>
-        {trade.strategy && <span>Strategy: {trade.strategy}</span>}
-      </section>
+          {trade.exitPrice && (
+            <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
+              <h2 className="mb-4 text-sm font-medium text-slate-300">Exit Results</h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <DetailCard label="Exit Price" value={trade.exitPrice.toString()} />
+                {trade.exitOutcome && (
+                  <DetailCard
+                    label="Exit type"
+                    value={
+                      trade.exitOutcome === "sl"
+                        ? "SL Hit"
+                        : trade.exitOutcome === "custom"
+                          ? "Custom"
+                          : trade.exitOutcome.toUpperCase()
+                    }
+                  />
+                )}
+                <DetailCard
+                  label="P/L"
+                  value={formatCurrency(trade.profitLoss)}
+                  variant={trade.isWinner ? "positive" : "negative"}
+                />
+                <DetailCard label="P/L %" value={formatPercent(trade.profitLossPercent)} />
+                <DetailCard label="R-Multiple" value={trade.actualRMultiple != null ? `${trade.actualRMultiple.toFixed(2)}R` : "—"} />
+                <DetailCard label="Pips" value={trade.pipsWonLost?.toFixed(1) ?? "—"} />
+                <DetailCard label="Duration" value={formatDuration(trade.tradeDurationMs)} />
+                <DetailCard label="Profit Captured" value={trade.plannedProfitCaptured != null ? `${trade.plannedProfitCaptured.toFixed(0)}%` : "—"} />
+                <DetailCard
+                  label="Result"
+                  value={trade.isWinner ? "Winner" : "Loser"}
+                  variant={trade.isWinner ? "positive" : "negative"}
+                />
+              </div>
+            </section>
+          )}
 
-      {trade.postTradeImpression && (
-        <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
-          <h2 className="mb-2 text-sm font-medium text-slate-300">Post-trade reflection</h2>
-          <p className="text-sm text-slate-400 whitespace-pre-wrap">{trade.postTradeImpression}</p>
-        </section>
-      )}
+          <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
+            <h2 className="mb-4 text-sm font-medium text-slate-300">Risk Analysis</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <DetailCard label="SL Distance" value={`${trade.slDistancePips?.toFixed(1) ?? "—"} pips`} />
+              <DetailCard label="TP Distance" value={`${trade.tpDistancePips?.toFixed(1) ?? "—"} pips`} />
+              <DetailCard label="Potential Loss" value={formatCurrency(trade.potentialLoss)} variant="negative" />
+              <DetailCard label="Potential Profit" value={formatCurrency(trade.potentialProfit)} variant="positive" />
+              <DetailCard label="Risk %" value={formatPercent(trade.riskPercent)} />
+              <DetailCard label="Reward %" value={formatPercent(trade.rewardPercent)} />
+            </div>
+          </section>
 
-      {aiConfigured && trade.exitPrice && !trade.aiReview && (
-        <section className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/30 px-5 py-4 text-sm text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-          AI coaching feedback is being generated…
-        </section>
-      )}
+          <section className="flex flex-wrap gap-4 text-sm text-slate-400">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-emerald-500" />
+              {trade.dayOfWeek}, {trade.timeOfDay}
+            </div>
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-emerald-500" />
+              {trade.tradingSession}
+            </div>
+            {trade.strategy && <span>Strategy: {trade.strategy}</span>}
+          </section>
 
-      {aiConfigured && trade.aiReview && (
-        <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-emerald-400">
-              <Brain className="h-5 w-5" />
-              AI Coach Feedback
-            </h2>
-            {trade.aiReviewedAt && (
-              <span className="text-xs text-slate-500">
-                Reviewed{" "}
-                {new Date(trade.aiReviewedAt).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-          </div>
-          <div className="max-w-none">
-            <TradeReviewDisplay review={trade.aiReview} />
-          </div>
-        </section>
+          {trade.postTradeImpression && (
+            <section className="rounded-xl border border-slate-800 bg-slate-900/30 p-5">
+              <h2 className="mb-2 text-sm font-medium text-slate-300">Post-trade reflection</h2>
+              <p className="text-sm text-slate-400 whitespace-pre-wrap">{trade.postTradeImpression}</p>
+            </section>
+          )}
+
+          {aiConfigured && trade.exitPrice && !trade.aiReview && (
+            <section className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/30 px-5 py-4 text-sm text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+              AI coaching feedback is being generated…
+            </section>
+          )}
+
+          {aiConfigured && trade.aiReview && (
+            <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-emerald-400">
+                  <Brain className="h-5 w-5" />
+                  AI Coach Feedback
+                </h2>
+                {trade.aiReviewedAt && (
+                  <span className="text-xs text-slate-500">
+                    Reviewed{" "}
+                    {new Date(trade.aiReviewedAt).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                )}
+              </div>
+              <div className="max-w-none">
+                <TradeReviewDisplay review={trade.aiReview} />
+              </div>
+            </section>
+          )}
+        </>
       )}
     </PageTransition>
   );

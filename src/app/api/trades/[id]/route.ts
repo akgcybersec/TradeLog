@@ -38,6 +38,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Trade not found" }, { status: 404 });
     }
 
+    if (existing.exitPrice != null) {
+      const setupFields = [
+        "instrument",
+        "direction",
+        "entryPrice",
+        "stopLoss",
+        "takeProfit",
+        "additionalTakeProfits",
+        "positionSize",
+        "positionUnit",
+        "accountBalance",
+        "strategy",
+        "notes",
+        "tradingProfileId",
+      ] as const;
+      if (setupFields.some((key) => body[key] !== undefined)) {
+        return NextResponse.json({ error: "Closed trades cannot be edited" }, { status: 400 });
+      }
+    }
+
     const additionalTakeProfits = Array.isArray(body.additionalTakeProfits)
       ? body.additionalTakeProfits
           .map((v: unknown) => Number(v))
